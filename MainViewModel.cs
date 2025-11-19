@@ -32,7 +32,8 @@ namespace IndyVision
                 "Threshold (이진화)",
                 "Adaptive Threshold (적응형 이진화)",
                 "Morphology (모폴로지)",
-                "Edge Detection (엣지 검출)"
+                "Edge Detection (엣지 검출)",
+                "Blob Analysis (블롭 분석)"
             };
         }
 
@@ -53,6 +54,14 @@ namespace IndyVision
                 // "이미지가 바뀌었습니다!"라고 방송해서 화면이 다시 그려지게 합니다.
                 OnPropertyChanged(); 
             }
+        }
+
+        // 분석 결과 텍스트 (예: "5 Objects Detected")
+        private string _analysisResult = "Ready";
+        public string AnalysisResult
+        {
+            get => _analysisResult;
+            set { _analysisResult = value; OnPropertyChanged(); }
         }
 
         // _showOriginal: "원본 보기" 체크박스 상태 (True/False)
@@ -108,7 +117,34 @@ namespace IndyVision
         public AlgorithmParamsBase CurrentParameters
         {
             get => _currentParameters;
-            set { _currentParameters = value; OnPropertyChanged(); }
+            set { _currentParameters = value; OnPropertyChanged(); }  // 원본
+
+            /*
+            // 수정: 파라미터 변경 시 이벤트 연결/해제 로직 추가
+            set
+            {
+                // 기존 파라미터가 있다면 이벤트 연결 해제 (메모리 누수 방지)
+                if (_currentParameters != null)
+                    _currentParameters.PropertyChanged -= OnParameterChanged;
+
+                _currentParameters = value;
+
+                // 새 파라미터에 이벤트 연결
+                if (_currentParameters != null)
+                    _currentParameters.PropertyChanged += OnParameterChanged;
+
+                OnPropertyChanged();
+            }
+            */
+        }
+
+        private void OnParameterChanged(object sender, PropertyChangedEventArgs e)
+        {
+            // 슬라이더를 움직이면 자동으로 ApplyAlgorithm을 실행합니다.
+            if (!string.IsNullOrEmpty(SelectedAlgorithm))
+            {
+                ApplyAlgorithm(null);
+            }
         }
 
         // --- Methods ---
@@ -123,14 +159,21 @@ namespace IndyVision
                     // 이진화 설정을 담을 그릇을 새로 만듭니다. (기본값 128 등 포함)
                     CurrentParameters = new ThresholdParams();
                     break;
+
                 case "Adaptive Threshold (적응형 이진화)":
                     CurrentParameters = new AdaptiveThresholdParams();
                     break;
+
                 case "Morphology (모폴로지)":
                     CurrentParameters = new MorphologyParams();
                     break;
+
                 case "Edge Detection (엣지 검출)":
                     CurrentParameters = new EdgeParams();
+                    break;
+
+                case "Blob Analysis (블롭 분석)":
+                    CurrentParameters = new BlobParams();
                     break;
                 default:
                     CurrentParameters = null; // 설정이 필요 없는 경우
@@ -181,7 +224,11 @@ namespace IndyVision
             // [중요] MilService에게 "이 알고리즘으로, 이 설정값(CurrentParameters)을 써서 처리해줘!"라고 명령합니다.
             // 여기서 사용자가 슬라이더로 조정한 값들이 MilService로 넘어갑니다.
             // 현재 설정된 파라미터(_currentParameters)를 넘겨줌
-            _milService.ProcessImage(SelectedAlgorithm, CurrentParameters);
+            //_milService.ProcessImage(SelectedAlgorithm, CurrentParameters);   // 기존 코드
+
+            // [수정] ProcessImage가 결과를 반환하도록 변경하거나, 호출 후 결과를 받아옴
+            string result = _milService.ProcessImage(SelectedAlgorithm, CurrentParameters);
+            AnalysisResult = result;
 
             // 처리가 끝났으니 결과를 보여주기 위해 "원본 보기"를 끕니다.
             ShowOriginal = false; // 적용 후엔 결과 보기로 자동 전환

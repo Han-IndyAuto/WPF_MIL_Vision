@@ -8,7 +8,7 @@
 
     <Window.Resources>
         <DataTemplate DataType="{x:Type local:ThresholdParams}">
-            <!--<StackPanel>
+            <StackPanel>
                 <TextBlock Text="Threshold Level (0~255)" Margin="0,0,0,5"/>
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -18,32 +18,6 @@
                     <Slider Maximum="255" Minimum="0" Value="{Binding ThresholdValue}" VerticalAlignment="Center"/>
                     <TextBox Text="{Binding ThresholdValue}" Grid.Column="1" Margin="5,0,0,0" TextAlignment="Center"/>
                 </Grid>
-            </StackPanel>-->
-
-            <StackPanel>
-                <TextBlock Text="Threshold Range (밝기 범위 설정)" Margin="0,0,0,5" FontWeight="Bold"/>
-
-                <TextBlock Text="Min Value (하한값)" Margin="0,5,0,0"/>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="50"/>
-                    </Grid.ColumnDefinitions>
-                    <Slider Maximum="255" Minimum="0" Value="{Binding ThresholdValue}" VerticalAlignment="Center"/>
-                    <TextBox Text="{Binding ThresholdValue}" Grid.Column="1" Margin="5,0,0,0" TextAlignment="Center"/>
-                </Grid>
-
-                <TextBlock Text="Max Value (상한값)" Margin="0,5,0,0"/>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="50"/>
-                    </Grid.ColumnDefinitions>
-                    <Slider Maximum="255" Minimum="0" Value="{Binding ThresholdMax}" VerticalAlignment="Center"/>
-                    <TextBox Text="{Binding ThresholdMax}" Grid.Column="1" Margin="5,0,0,0" TextAlignment="Center"/>
-                </Grid>
-
-                <TextBlock Text="* 이 범위 안의 밝기만 흰색으로 변합니다." FontSize="10" Foreground="Gray" Margin="0,5"/>
             </StackPanel>
         </DataTemplate>
 
@@ -128,48 +102,6 @@
                 </Grid>
             </StackPanel>
         </DataTemplate>
-
-        <DataTemplate DataType="{x:Type local:BlobParams}">
-            <StackPanel>
-                <TextBlock Text="1. Target Brightness (찾을 밝기 범위)" FontWeight="Bold" Margin="0,0,0,5"/>
-
-                <TextBlock Text="Min Brightness (하한값)"/>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="50"/>
-                    </Grid.ColumnDefinitions>
-                    <Slider Maximum="255" Minimum="0" Value="{Binding ThresholdMin}" VerticalAlignment="Center"/>
-                    <TextBox Text="{Binding ThresholdMin}" Grid.Column="1" TextAlignment="Center"/>
-                </Grid>
-
-                <TextBlock Text="Max Brightness (상한값)"/>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="50"/>
-                    </Grid.ColumnDefinitions>
-                    <Slider Maximum="255" Minimum="0" Value="{Binding ThresholdMax}" VerticalAlignment="Center"/>
-                    <TextBox Text="{Binding ThresholdMax}" Grid.Column="1" TextAlignment="Center"/>
-                </Grid>
-
-                <Separator Margin="0,10"/>
-
-                <TextBlock Text="2. Size Filtering (크기 제한)" FontWeight="Bold" Margin="0,0,0,5"/>
-                <TextBlock Text="Min Area (최소 픽셀 수)"/>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="50"/>
-                    </Grid.ColumnDefinitions>
-                    <Slider Maximum="5000" Minimum="10" Value="{Binding MinArea}" VerticalAlignment="Center"/>
-                    <TextBox Text="{Binding MinArea}" Grid.Column="1" TextAlignment="Center"/>
-                </Grid>
-
-                <CheckBox Content="Draw Box (박스 표시)" IsChecked="{Binding DrawBox}" Margin="0,10"/>
-            </StackPanel>
-        </DataTemplate>
-
 
         <DataTemplate DataType="{x:Type local:AlgorithmParamsBase}">
             <TextBlock Text="설정 가능한 속성이 없습니다." Foreground="Gray" FontStyle="Italic"/>
@@ -266,7 +198,7 @@
         </Grid>
 
         <StatusBar Grid.Row="2" Background="White" BorderBrush="Gray" BorderThickness="0,1,0,0">
-            <StatusBarItem Content="{Binding AnalysisResult}" FontWeight="Bold" Foreground="Blue"/>
+            <StatusBarItem Content="Ready"/>
             <StatusBarItem Content="리소스 사용량 표시 영역" HorizontalAlignment="Right"/>
         </StatusBar>
     </Grid>

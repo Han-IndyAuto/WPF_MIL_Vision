@@ -18,4 +18,3 @@ D:\Project\INDY\IndyVision\obj\x64\Debug\IndyVision.csproj.CoreCompileInputs.cac
 D:\Project\INDY\IndyVision\obj\x64\Debug\IndyVision.csproj.Up2Date
 D:\Project\INDY\IndyVision\obj\x64\Debug\IndyVision.exe
 D:\Project\INDY\IndyVision\obj\x64\Debug\IndyVision.pdb
-D:\Project\INDY\IndyVision\obj\x64\Debug\IndyVision.exe.config

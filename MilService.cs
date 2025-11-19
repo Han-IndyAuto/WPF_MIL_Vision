@@ -52,28 +52,6 @@ namespace IndyVision
         private ImageSource _cachedOriginal;
         private ImageSource _cachedProcessed;
 
-
-
-        /*
-        // 1. 구조 요소 할당 (mil.dll -> milim.dll 로 변경)
-        [DllImport("milim.dll", CallingConvention = CallingConvention.StdCall)]
-        private static extern void MstructAlloc(MIL_ID SystemId, long StructType, long Attribute, ref MIL_ID StructIdPtr);
-
-        // 2. 구조 요소 설정 (mil.dll -> milim.dll 로 변경)
-        [DllImport("milim.dll", CallingConvention = CallingConvention.StdCall)]
-        private static extern void MstructControl(MIL_ID StructId, long ControlType, double ControlValue);
-
-        // 3. 구조 요소 해제 (mil.dll -> milim.dll 로 변경)
-        [DllImport("milim.dll", CallingConvention = CallingConvention.StdCall)]
-        private static extern void MstructFree(MIL_ID StructId);
-
-        // 4. 모폴로지 연산 (milim.dll 유지)
-        [DllImport("milim.dll", CallingConvention = CallingConvention.StdCall)]
-        private static extern void MimMorphic(MIL_ID SrcImageId, MIL_ID DestImageId, long Operation, MIL_ID StructElemId, long Iterations);
-        */
-
-
-
         public MilService()
         {
             InitializeMIL();
@@ -163,9 +141,11 @@ namespace IndyVision
         }
 
         // 파라미터를 받는 처리 함수
-        public void ProcessImage(string algorithm, AlgorithmParamsBase parameters)
+        public string ProcessImage(string algorithm, AlgorithmParamsBase parameters)
         {
-            if (MilSourceImage == MIL.M_NULL) return;
+            if (MilSourceImage == MIL.M_NULL) return "이미지 없음.";
+
+            string resultMessage = "Processing Complete"; // 반환할 메시지
 
             // 1. 리셋: 작업용 그릇(Dest)을 다시 원본(Source)으로 덮어씁니다.
             // 이걸 안 하면, 이진화된 거 위에 또 이진화를 하게 되어 이미지가 망가집니다.
@@ -180,7 +160,11 @@ namespace IndyVision
                     {
                         // 설정된 임계값 적용
                         // MimBinarize: 픽셀 값이 기준(ThresholdValue)보다 크면 흰색(255), 작으면 검은색(0)으로 만듦
-                        MIL.MimBinarize(MilDestImage, MilDestImage, MIL.M_FIXED + MIL.M_GREATER, thParams.ThresholdValue, MIL.M_NULL);
+                        //MIL.MimBinarize(MilDestImage, MilDestImage, MIL.M_FIXED + MIL.M_GREATER, thParams.ThresholdValue, MIL.M_NULL);
+
+                        // [수정] M_IN_RANGE: Min ~Max 사이의 밝기를 가진 픽셀만 찾음
+                        // 파라미터 순서: 소스, 타겟, 모드, 하한값(Min), 상한값(Max)
+                        MIL.MimBinarize(MilDestImage, MilDestImage, MIL.M_IN_RANGE, thParams.ThresholdValue, thParams.ThresholdMax);
                     }
                     break;
 
@@ -309,11 +293,133 @@ namespace IndyVision
                     }
                     break;
 
+                // --------------------------------------------------------------------------
+                // [수정] 블롭 분석 로직 교체 (MimCalculate 대신 C# 직접 계산 사용)
+                // --------------------------------------------------------------------------
+                case "Blob Analysis (블롭 분석)":
+                    if (parameters is BlobParams blobParams)
+                    {
+                        // 1. 이진화 (Binarize)
+                        // 사용자가 설정한 범위(Min~Max)를 흰색(255)으로, 나머지는 검은색(0)으로
+                        MIL.MimBinarize(MilDestImage, MilDestImage, MIL.M_IN_RANGE, blobParams.ThresholdMin, blobParams.ThresholdMax);
+
+                        MIL_ID MilLabelImg = MIL.M_NULL;
+                        long width = 0, height = 0;
+                        MIL.MbufInquire(MilDestImage, MIL.M_SIZE_X, ref width);
+                        MIL.MbufInquire(MilDestImage, MIL.M_SIZE_Y, ref height);
+
+                        try
+                        {
+                            // 2. 라벨 이미지 할당 (16비트)
+                            // MimLabel 결과를 담을 그릇을 만듭니다.
+                            MIL.MbufAlloc2d(MilSystem, width, height, 16 + MIL.M_UNSIGNED, MIL.M_IMAGE + MIL.M_PROC, ref MilLabelImg);
+                            MIL.MbufClear(MilLabelImg, 0); // 초기화
+
+                            // 3. 라벨링 수행 (MimLabel)
+                            // 연결된 픽셀끼리 같은 번호를 매깁니다. (1, 2, 3...)
+                            MIL.MimLabel(MilDestImage, MilLabelImg, MIL.M_DEFAULT);
+
+                            // 4. 라벨 데이터를 C# 배열로 가져오기 (가장 확실한 방법)
+                            ushort[] labelData = new ushort[width * height];
+                            MIL.MbufGet(MilLabelImg, labelData);
+
+                            // 5. C#에서 직접 면적 및 박스 계산 (속도 빠름)
+                            // Dictionary: <라벨번호, 블롭정보>
+                            System.Collections.Generic.Dictionary<int, BlobInfo> blobs = new System.Collections.Generic.Dictionary<int, BlobInfo>();
+
+                            for (int y = 0; y < height; y++)
+                            {
+                                for (int x = 0; x < width; x++)
+                                {
+                                    int index = (int)(y * width + x);
+                                    int label = labelData[index];
+
+                                    if (label > 0) // 0은 배경
+                                    {
+                                        if (!blobs.ContainsKey(label))
+                                        {
+                                            // 새로운 블롭 발견 -> 등록
+                                            blobs[label] = new BlobInfo { MinX = x, MaxX = x, MinY = y, MaxY = y, Area = 1 };
+                                        }
+                                        else
+                                        {
+                                            // 기존 블롭 -> 정보 갱신
+                                            BlobInfo info = blobs[label];
+                                            info.Area++;
+                                            if (x < info.MinX) info.MinX = x;
+                                            if (x > info.MaxX) info.MaxX = x;
+                                            if (y < info.MinY) info.MinY = y;
+                                            if (y > info.MaxY) info.MaxY = y;
+                                            blobs[label] = info; // 구조체/클래스 업데이트
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ------------------------------------------------------------
+                            // 6. 결과 그리기 및 카운트 (컬러 박스 적용)
+                            // ------------------------------------------------------------
+
+                            // [1] 화면 표시용 '컬러 버퍼' 생성 (가로 x 세로 x 3밴드)
+                            // M_PACKED: RGB 데이터가 섞여 있는 포맷 (WPF 호환용)
+                            MIL_ID MilColorDisplay = MIL.M_NULL;
+                            MIL.MbufAllocColor(MilSystem, 3, width, height, 8 + MIL.M_UNSIGNED, MIL.M_IMAGE + MIL.M_PROC + MIL.M_PACKED, ref MilColorDisplay);
+
+                            // [2] 흑백 처리 결과를 컬러 버퍼로 복사 (여전히 흑백처럼 보임)
+                            MIL.MbufCopy(MilDestImage, MilColorDisplay);
+
+                            // [3] 그리기 색상을 '빨간색(Red)'으로 설정
+                            // MIL.M_COLOR_RED 상수가 없다면: MIL.M_RGB888(255, 0, 0) 사용
+                            MIL.MgraColor(MIL.M_DEFAULT, MIL.M_COLOR_RED);
+
+                            int validCount = 0;
+                            long padding = 5; // 박스 여백
+
+                            foreach (var blob in blobs.Values)
+                            {
+                                if (blob.Area >= blobParams.MinArea)
+                                {
+                                    validCount++;
+                                    if (blobParams.DrawBox)
+                                    {
+                                        // 좌표에 여백 추가
+                                        long drawMinX = (blob.MinX > padding) ? blob.MinX - padding : 0;
+                                        long drawMinY = (blob.MinY > padding) ? blob.MinY - padding : 0;
+                                        long drawMaxX = (blob.MaxX + padding < width) ? blob.MaxX + padding : width - 1;
+                                        long drawMaxY = (blob.MaxY + padding < height) ? blob.MaxY + padding : height - 1;
+
+                                        // [4] 컬러 버퍼(MilColorDisplay) 위에 박스 그리기
+                                        MIL.MgraRect(MIL.M_DEFAULT, MilColorDisplay, drawMinX, drawMinY, drawMaxX, drawMaxY);
+                                    }
+                                }
+                            }
+
+                            // [5] 화면 갱신: 컬러 버퍼를 비트맵으로 변환하여 UI에 표시
+                            _cachedProcessed = ConvertMilToBitmap(MilColorDisplay);
+
+                            // [6] 임시 컬러 버퍼 해제 (필수)
+                            MIL.MbufFree(MilColorDisplay);
+
+                            resultMessage = $"검출 성공: {validCount}개 (전체 {blobs.Count}개 중)";
+
+                            return resultMessage;
+
+                        }
+                        finally
+                        {
+                            // 메모리 해제
+                            if (MilLabelImg != MIL.M_NULL) MIL.MbufFree(MilLabelImg);
+                        }
+                    }
+                    break;
+
             }
 
             // 3. 결과 갱신: 처리된 이미지를 다시 화면용 비트맵으로 변환해 둡니다.
             // 처리 결과를 캐싱
             _cachedProcessed = ConvertMilToBitmap(MilDestImage);
+
+            return resultMessage;
         }
 
         public ImageSource GetOriginalImage() => _cachedOriginal;
@@ -323,12 +429,70 @@ namespace IndyVision
         private BitmapSource ConvertMilToBitmap(MIL_ID milBuffer)
         {
             if (milBuffer == MIL.M_NULL) return null;
-            long width = 0, height = 0;
+
+            long width = 0, height = 0, bands = 0;
+
+            // 1. 기본 정보 조회
             MIL.MbufInquire(milBuffer, MIL.M_SIZE_X, ref width);
             MIL.MbufInquire(milBuffer, MIL.M_SIZE_Y, ref height);
-            byte[] pixelData = new byte[width * height];
-            MIL.MbufGet(milBuffer, pixelData);
-            return BitmapSource.Create((int)width, (int)height, 96, 96, PixelFormats.Gray8, null, pixelData, (int)width);
+            MIL.MbufInquire(milBuffer, MIL.M_SIZE_BAND, ref bands);
+
+            if (bands == 1) // 흑백 (Gray8)
+            {
+                // MIL에서 Packed 데이터 가져오기
+                int milStride = (int)width;
+                byte[] milData = new byte[milStride * height];
+                MIL.MbufGet(milBuffer, milData);
+
+                // WPF용 4바이트 정렬 Stride 계산
+                int wpfStride = (int)((width + 3) & ~3);
+
+                // 데이터 정렬 (밀림 방지)
+                if (milStride == wpfStride)
+                {
+                    return BitmapSource.Create((int)width, (int)height, 96, 96, PixelFormats.Gray8, null, milData, wpfStride);
+                }
+                else
+                {
+                    byte[] wpfData = new byte[wpfStride * height];
+                    for (int y = 0; y < height; y++)
+                    {
+                        Array.Copy(milData, y * milStride, wpfData, y * wpfStride, milStride);
+                    }
+                    return BitmapSource.Create((int)width, (int)height, 96, 96, PixelFormats.Gray8, null, wpfData, wpfStride);
+                }
+            }
+            else if (bands == 3) // 컬러 (Bgr24)
+            {
+                // 1. 데이터 배열 준비 (너비 * 3)
+                int milStride = (int)(width * 3);
+                byte[] milData = new byte[milStride * height];
+
+                // [핵심 수정] MbufGet 대신 MbufGetColor를 사용합니다.
+                // MIL.M_PACKED + MIL.M_BGR24: "데이터가 어떻게 되어있든, 무조건 BGR BGR... 순서로 뭉쳐서 가져와라"
+                // 이 코드가 없으면 RRR...GGG...BBB... (Planar)로 가져와서 이미지가 3개로 보입니다.
+                MIL.MbufGetColor(milBuffer, MIL.M_PACKED + MIL.M_BGR24, MIL.M_ALL_BANDS, milData);
+
+                // 2. WPF용 4바이트 정렬 Stride 계산
+                int wpfStride = (int)((width * 3 + 3) & ~3);
+
+                // 3. 데이터 정렬 (밀림 방지)
+                if (milStride == wpfStride)
+                {
+                    return BitmapSource.Create((int)width, (int)height, 96, 96, PixelFormats.Bgr24, null, milData, wpfStride);
+                }
+                else
+                {
+                    byte[] wpfData = new byte[wpfStride * height];
+                    for (int y = 0; y < height; y++)
+                    {
+                        Array.Copy(milData, y * milStride, wpfData, y * wpfStride, milStride);
+                    }
+                    return BitmapSource.Create((int)width, (int)height, 96, 96, PixelFormats.Bgr24, null, wpfData, wpfStride);
+                }
+            }
+
+            return null;
         }
 
         private void FreeImages()
@@ -344,5 +508,15 @@ namespace IndyVision
             if (MilSystem != MIL.M_NULL) MIL.MsysFree(MilSystem);           // 2. 시스템 해제
             if (MilApplication != MIL.M_NULL) MIL.MappFree(MilApplication); // 3. 어플리케이션 해제
         }
+    }
+
+    // 블롭 정보를 저장할 간단한 클래스
+    public class BlobInfo
+    {
+        public long MinX;
+        public long MaxX;
+        public long MinY;
+        public long MaxY;
+        public long Area;
     }
 }

@@ -81,6 +81,13 @@ namespace IndyVision
 
             imgTranslate.X = (ZoomBorder.ActualWidth - finalWidth) / 2;
             imgTranslate.Y = (ZoomBorder.ActualHeight - finalHeight) / 2;
+
+            /*
+            // [디버깅] 계산된 결과를 윈도우 제목에 표시 (성공 여부 확인용)
+            this.Title = $"결과: W={imageSource.Width}, H={imageSource.Height}, " +
+                         $"Border={ZoomBorder.ActualWidth:F0}x{ZoomBorder.ActualHeight:F0}, " +
+                         $"Scale={scale:F4}, TransX={imgTranslate.X:F0}, TransY={imgTranslate.Y:F0}";
+            */
         }
 
         // ---------------------------------------------------------

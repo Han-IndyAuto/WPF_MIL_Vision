@@ -52,6 +52,15 @@ namespace IndyVision
                 }
             }
         }
+
+        // [추가] 2. 상한값 (Max) - 기본값 255 (완전 흰색 포함)
+        private byte _thresholdMax = 255;
+        public byte ThresholdMax
+        {
+            get => _thresholdMax;
+            set { if (_thresholdMax != value) { _thresholdMax = value; OnPropertyChanged(); } }
+        }
+
     }
 
     public class MorphologyParams : AlgorithmParamsBase
@@ -172,6 +181,55 @@ namespace IndyVision
                 if (_mode != value)
                 {
                     _mode = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+    }
+
+
+    public class BlobParams : AlgorithmParamsBase
+    {
+        // [추가] 1. 밝기 범위 설정 (이진화용)
+        private byte _thresholdMin = 50;
+        public byte ThresholdMin
+        {
+            get => _thresholdMin;
+            set { if (_thresholdMin != value) { _thresholdMin = value; OnPropertyChanged(); } }
+        }
+
+        private byte _thresholdMax = 200;
+        public byte ThresholdMax
+        {
+            get => _thresholdMax;
+            set { if (_thresholdMax != value) { _thresholdMax = value; OnPropertyChanged(); } }
+        }
+
+        // 최소 면적(픽셀 수): 이 값보다 작은 덩어리는 무시.
+        private int _minArea = 100;
+        public int MinArea
+        {
+            get => _minArea;
+            set
+            {
+                if (_minArea != value)
+                {
+                    _minArea = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        // (선택 사항) 결과를 화면에 사각형으로 그릴지 여부.
+        private bool _drawBox = true;
+        public bool DrawBox
+        {
+            get => _drawBox;
+            set
+            {
+                if (_drawBox != value)
+                {
+                    _drawBox = value;
                     OnPropertyChanged();
                 }
             }
