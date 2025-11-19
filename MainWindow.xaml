@@ -170,7 +170,6 @@
             </StackPanel>
         </DataTemplate>
 
-
         <DataTemplate DataType="{x:Type local:AlgorithmParamsBase}">
             <TextBlock Text="설정 가능한 속성이 없습니다." Foreground="Gray" FontStyle="Italic"/>
         </DataTemplate>
@@ -228,12 +227,15 @@
                            SizeChanged="ImgView_SizeChanged">
                             <Image.RenderTransform>
                                 <TransformGroup>
+                                    <!-- XAML에 <... x:Name="이름"/> 을 적는 것이 곧 "객체를 생성하고 변수명도 지어라"라는 명령-->
                                     <ScaleTransform x:Name="imgScale" />
                                     <TranslateTransform x:Name="imgTranslate" />
                                 </TransformGroup>
                             </Image.RenderTransform>
                         </Image>
 
+                        <!--WPF가 ContextMenu 속성이 설정된 요소는 우클릭 시 자동으로 메뉴를 연다는 규칙을 가지고 있기 때문에, 
+                        별도의 C# 이벤트 핸들러 없이도 동작-->
                         <Rectangle x:Name="RoiRect" Stroke="Red" StrokeThickness="2"
                                    Fill="#33FF0000" Visibility="Collapsed">
                             <Rectangle.ContextMenu>
