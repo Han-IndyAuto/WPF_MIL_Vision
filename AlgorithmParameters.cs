@@ -187,7 +187,6 @@ namespace IndyVision
         }
     }
 
-
     public class BlobParams : AlgorithmParamsBase
     {
         // [추가] 1. 밝기 범위 설정 (이진화용)
@@ -236,5 +235,9 @@ namespace IndyVision
         }
     }
 
+    public class RoiParams : AlgorithmParamsBase
+    {
+        // empty for future use
+    }
 
 }

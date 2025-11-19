@@ -339,18 +339,21 @@ namespace IndyVision
                                         if (!blobs.ContainsKey(label))
                                         {
                                             // 새로운 블롭 발견 -> 등록
-                                            blobs[label] = new BlobInfo { MinX = x, MaxX = x, MinY = y, MaxY = y, Area = 1 };
+                                            blobs[label] = new BlobInfo { MinX = x, MaxX = x, MinY = y, MaxY = y, Area = 1, SumX = x, SumY = y };
                                         }
                                         else
                                         {
                                             // 기존 블롭 -> 정보 갱신
                                             BlobInfo info = blobs[label];
                                             info.Area++;
+
+                                            info.SumX += x; // X 좌표 누적
+                                            info.SumY += y; // Y 좌표 누적
+
                                             if (x < info.MinX) info.MinX = x;
                                             if (x > info.MaxX) info.MaxX = x;
                                             if (y < info.MinY) info.MinY = y;
                                             if (y > info.MaxY) info.MaxY = y;
-                                            blobs[label] = info; // 구조체/클래스 업데이트
                                         }
                                     }
                                 }
@@ -368,9 +371,13 @@ namespace IndyVision
                             // [2] 흑백 처리 결과를 컬러 버퍼로 복사 (여전히 흑백처럼 보임)
                             MIL.MbufCopy(MilDestImage, MilColorDisplay);
 
+                            // [설정] 텍스트 배경을 투명하게 설정 (글자 뒤에 검은 박스 제거)
+                            MIL.MgraControl(MIL.M_DEFAULT, MIL.M_BACKGROUND_MODE, MIL.M_TRANSPARENT);
+
+
                             // [3] 그리기 색상을 '빨간색(Red)'으로 설정
                             // MIL.M_COLOR_RED 상수가 없다면: MIL.M_RGB888(255, 0, 0) 사용
-                            MIL.MgraColor(MIL.M_DEFAULT, MIL.M_COLOR_RED);
+                            //MIL.MgraColor(MIL.M_DEFAULT, MIL.M_COLOR_RED);
 
                             int validCount = 0;
                             long padding = 5; // 박스 여백
@@ -388,8 +395,27 @@ namespace IndyVision
                                         long drawMaxX = (blob.MaxX + padding < width) ? blob.MaxX + padding : width - 1;
                                         long drawMaxY = (blob.MaxY + padding < height) ? blob.MaxY + padding : height - 1;
 
+                                        // 무게 중심(Center of Gravity) 계산
+                                        long centerX = blob.SumX / blob.Area;
+                                        long centerY = blob.SumY / blob.Area;
+
                                         // [4] 컬러 버퍼(MilColorDisplay) 위에 박스 그리기
+                                        //MIL.MgraRect(MIL.M_DEFAULT, MilColorDisplay, drawMinX, drawMinY, drawMaxX, drawMaxY);
+
+                                        // B. 빨간색 사각형 그리기
+                                        MIL.MgraColor(MIL.M_DEFAULT, MIL.M_COLOR_RED);
                                         MIL.MgraRect(MIL.M_DEFAULT, MilColorDisplay, drawMinX, drawMinY, drawMaxX, drawMaxY);
+
+                                        // C. 파란색 점 그리기
+                                        // MgraArcFill: 채워진 원 그리기 (중심X, 중심Y, 반지름X, 반지름Y, 시작각도, 종료각도)
+                                        MIL.MgraColor(MIL.M_DEFAULT, MIL.M_COLOR_BLUE);
+                                        MIL.MgraArcFill(MIL.M_DEFAULT, MilColorDisplay, centerX, centerY, 3, 3, 0, 360);
+
+                                        // D. 녹색 텍스트 쓰기
+                                        // 표시 내용: (X, Y, Area)
+                                        string infoText = $"({centerX}, {centerY}, {blob.Area})";
+                                        MIL.MgraColor(MIL.M_DEFAULT, MIL.M_COLOR_GREEN);
+                                        MIL.MgraText(MIL.M_DEFAULT, MilColorDisplay, centerX + 10, centerY, infoText);
                                     }
                                 }
                             }
@@ -508,6 +534,63 @@ namespace IndyVision
             if (MilSystem != MIL.M_NULL) MIL.MsysFree(MilSystem);           // 2. 시스템 해제
             if (MilApplication != MIL.M_NULL) MIL.MappFree(MilApplication); // 3. 어플리케이션 해제
         }
+
+        public void CropImage(int x, int y, int w, int h)
+        {
+            if (MilSourceImage == MIL.M_NULL) return;
+
+            // 자식 버퍼(child buffer) 생성: 기존 이미지의 일부만 가리키는 가상의 버퍼.
+            MIL_ID childBuffer = MIL.M_NULL;
+            MIL.MbufChild2d(MilSourceImage, x, y, w, h, ref childBuffer);
+
+            // 새로운 그릇 (New source)생성.
+            MIL_ID newSource = MIL.M_NULL;
+            MIL_ID newDest = MIL.M_NULL;
+
+            // ROI 크기 만큼 새로 할당.
+            MIL.MbufAlloc2d(MilSystem, w, h, 8 + MIL.M_UNSIGNED, MIL.M_IMAGE + MIL.M_DISP + MIL.M_PROC, ref newSource);
+            MIL.MbufAlloc2d(MilSystem, w, h, 8 + MIL.M_UNSIGNED, MIL.M_IMAGE + MIL.M_DISP + MIL.M_PROC, ref newDest);
+
+            // 데이터 복사
+            MIL.MbufCopy(childBuffer, newSource);
+
+            // 기존 버퍼 정리
+            MIL.MbufFree(childBuffer);  // 자식해제
+            FreeImages();               // 기존 Source와 Dest 해제.
+
+            // 새 버퍼를 메인 버퍼로 등록.
+            MilSourceImage = newSource;
+            MilDestImage = newDest;
+            MIL.MbufCopy(MilSourceImage, MilDestImage);
+
+            // 화면 갱신
+            _cachedOriginal = ConvertMilToBitmap(MilSourceImage);
+            _cachedProcessed = ConvertMilToBitmap(MilDestImage);
+        }
+
+
+        // [추가] ROI 영역을 파일로 저장
+        public void SaveRoiImage(string filePath, int x, int y, int w, int h)
+        {
+            if (MilSourceImage == MIL.M_NULL) return;
+
+            MIL_ID childBuffer = MIL.M_NULL;
+            try
+            {
+                // 1. 해당 영역만 가리키는 자식 버퍼 생성
+                MIL.MbufChild2d(MilSourceImage, x, y, w, h, ref childBuffer);
+
+                // 2. 파일 저장 (MbufExport)
+                // 확장자에 따라 포맷 자동 결정 (MIL_M_WITH_CALIBRATION 옵션 제외 가능)
+                MIL.MbufExport(filePath, MIL.M_DEFAULT, childBuffer);
+            }
+            finally
+            {
+                if (childBuffer != MIL.M_NULL) MIL.MbufFree(childBuffer);
+            }
+        }
+
+
     }
 
     // 블롭 정보를 저장할 간단한 클래스
@@ -518,5 +601,10 @@ namespace IndyVision
         public long MinY;
         public long MaxY;
         public long Area;
+
+        // 중심 좌표 계산을 위해 SumX, SumY 추가
+        // 무게 중심(Center of Gravity) 계산용 누적값
+        public long SumX;
+        public long SumY;
     }
 }

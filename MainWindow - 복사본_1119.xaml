@@ -213,8 +213,8 @@
                         BorderBrush="#333" BorderThickness="1" Background="#333333"
                         ClipToBounds="True"
                         MouseWheel="ZoomBorder_MouseWheel"
-                        MouseDown="ZoomBorder_MouseDown"
-                        MouseUp="ZoomBorder_MouseUp"
+                        MouseLeftButtonDown="ZoomBorder_MouseLeftButtonDown"
+                        MouseLeftButtonUp="ZoomBorder_MouseLeftButtonUp"
                         MouseMove="ZoomBorder_MouseMove"
                         SizeChanged="ZoomBorder_SizeChanged"
                         Loaded="ZoomBorder_Loaded">
@@ -233,17 +233,6 @@
                                 </TransformGroup>
                             </Image.RenderTransform>
                         </Image>
-
-                        <Rectangle x:Name="RoiRect" Stroke="Red" StrokeThickness="2"
-                                   Fill="#33FF0000" Visibility="Collapsed">
-                            <Rectangle.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="Crop Image (잘라내기)" Click="MenuItem_Crop_Click" />
-                                    <MenuItem Header="Save ROI (저장하기)" Click="MenuItem_Save_Click"/>
-                                </ContextMenu>
-                            </Rectangle.ContextMenu>
-                        </Rectangle>
-                        
                     </Canvas>
                 </Border>
             </Grid>
@@ -278,18 +267,7 @@
 
         <StatusBar Grid.Row="2" Background="White" BorderBrush="Gray" BorderThickness="0,1,0,0">
             <StatusBarItem Content="{Binding AnalysisResult}" FontWeight="Bold" Foreground="Blue"/>
-
-            <StatusBarItem HorizontalAlignment="Right">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="{Binding MouseCoordinationInfo}" Margin="0,0,20,0" VerticalAlignment="Center" FontWeight="SemiBold"/>
-
-                    <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="0,0,10,0"/>
-                    
-                    <TextBlock Text="리소스 사용량 표시 영역" VerticalAlignment="Center"/>
-                </StackPanel>
-            </StatusBarItem>
-            
-            <!--<StatusBarItem Content="리소스 사용량 표시 영역" HorizontalAlignment="Right"/>-->
+            <StatusBarItem Content="리소스 사용량 표시 영역" HorizontalAlignment="Right"/>
         </StatusBar>
     </Grid>
 </Window>

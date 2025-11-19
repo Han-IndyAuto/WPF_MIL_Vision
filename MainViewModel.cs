@@ -6,6 +6,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.Win32;
 
+using System.Windows.Threading;
+
 namespace IndyVision
 {
     public class MainViewModel : INotifyPropertyChanged
@@ -13,6 +15,9 @@ namespace IndyVision
         // _milService: 실제 이미지 처리를 담당하는 전문가(작업자)입니다.
         // ViewModel이 직접 이미지를 깎지 않고, 이 전문가에게 시킵니다.
         private MilService _milService;
+
+        // 연속 실행 방지용 타이머 (Debounce Timer)
+        private DispatcherTimer _autoApplyTimer;
 
         // 생성자: 이 클래스가 처음 만들어질 때(프로그램 켜질 때) 딱 한 번 실행됩니다.
         // 실행 시점은 MainWindow.xaml에서 DataContext로 이 ViewModel을 지정할 때입니다.
@@ -28,6 +33,7 @@ namespace IndyVision
             // 2. 콤보박스에 들어갈 메뉴판(알고리즘 목록)을 만듭니다.
             AlgorithmList = new ObservableCollection<string>
             {
+                "ROI Selection (영역 설정)",
                 "Gray 처리",
                 "Threshold (이진화)",
                 "Adaptive Threshold (적응형 이진화)",
@@ -35,11 +41,38 @@ namespace IndyVision
                 "Edge Detection (엣지 검출)",
                 "Blob Analysis (블롭 분석)"
             };
+
+            // 3. 자동 적용 타이머 초기화
+            // Interval: 이 시간 동안 추가 입력이 없으면 실행.
+            // 100ms ~ 200ms 정도가 자연스럽게 동작 (너무 짧으면 버벅이고, 길면 반응이 느림)
+            _autoApplyTimer = new DispatcherTimer();
+            _autoApplyTimer.Interval = TimeSpan.FromMilliseconds(150);
+            _autoApplyTimer.Tick += AutoApplyTimer_Tick;
+        }
+
+        private void AutoApplyTimer_Tick(object sender, EventArgs e)
+        {
+            _autoApplyTimer.Stop(); // 타이머 중지
+            ApplyAlgorithm(null);   // 실제 알고리즘 적용.
         }
 
         // --- Properties ---
         // 화면에 보여지는 데이터 (Properties)
         // 여기가 MVVM 패턴의 꽃입니다. 데이터가 변하면 화면이 자동으로 바뀝니다.
+
+        // 마우스 좌표 표시용 속성
+        private string _mouseCoordinationInfo = "(X: 0, Y: 0)";
+        public string MouseCoordinationInfo
+        {
+            get => _mouseCoordinationInfo;
+            set 
+            {
+                if (_mouseCoordinationInfo == value) return;
+
+                _mouseCoordinationInfo = value; 
+                OnPropertyChanged(); 
+            }
+        }
 
         // 화면에 표시되는 최종 이미지
         // _displayImage: 화면에 실제로 보여줄 이미지 데이터가 담긴 변수(금고)입니다.
@@ -106,6 +139,9 @@ namespace IndyVision
                 // 사용자가 "모폴로지"를 선택하면 -> 모폴로지용 설정(Params)을 만듭니다.
                 // 알고리즘 선택 시 해당 파라미터 객체 생성
                 CreateParametersForAlgorithm(value);
+
+                // 알고리즘을 바꾸면 즉시 한번 실행.
+                //ApplyAlgorithm(null); // 선택 즉시 적용
             }
         }
 
@@ -117,9 +153,8 @@ namespace IndyVision
         public AlgorithmParamsBase CurrentParameters
         {
             get => _currentParameters;
-            set { _currentParameters = value; OnPropertyChanged(); }  // 원본
+            //set { _currentParameters = value; OnPropertyChanged(); }  // 원본
 
-            /*
             // 수정: 파라미터 변경 시 이벤트 연결/해제 로직 추가
             set
             {
@@ -135,16 +170,21 @@ namespace IndyVision
 
                 OnPropertyChanged();
             }
-            */
         }
 
         private void OnParameterChanged(object sender, PropertyChangedEventArgs e)
         {
             // 슬라이더를 움직이면 자동으로 ApplyAlgorithm을 실행합니다.
-            if (!string.IsNullOrEmpty(SelectedAlgorithm))
-            {
-                ApplyAlgorithm(null);
-            }
+            //if (!string.IsNullOrEmpty(SelectedAlgorithm))
+            //{
+            //   ApplyAlgorithm(null);
+            //}
+
+            // 바로 실행하지 않고, 타이머를 리셋.
+            // 사용자가 슬라이더를 계속 움직이는 중이면 타이머가 계속 0으로 초기화 되어 실행을 미룹니다.
+            // 움직임을 멈추면, 타이머가 설정된 시간 뒤에 Tick 이벤트가 발생하여 ApplyAlgorithm이 호출됩니다.
+            _autoApplyTimer.Stop();
+            _autoApplyTimer.Start();
         }
 
         // --- Methods ---
@@ -155,6 +195,10 @@ namespace IndyVision
             // 선택된 이름에 따라 적절한 설정 클래스 생성
             switch (algoName)
             {
+                case "ROI Selection (영역 설정)":
+                    CurrentParameters = new RoiParams(); 
+                    break;
+
                 case "Threshold (이진화)":
                     // 이진화 설정을 담을 그릇을 새로 만듭니다. (기본값 128 등 포함)
                     CurrentParameters = new ThresholdParams();
@@ -178,6 +222,42 @@ namespace IndyVision
                 default:
                     CurrentParameters = null; // 설정이 필요 없는 경우
                     break;
+            }
+        }
+
+        /// <summary>
+        /// ROI 자르기 및 저장 메서드 (View에서 호출할 함수)
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <param name="w"></param>
+        /// <param name="h"></param>
+        public void CropImage(int x, int y, int w, int h)
+        {
+            try
+            {
+                _milService.CropImage(x, y, w, h);
+                ShowOriginal = true;    // 잘린 이미지가 원본이 되므로 원본 보기로 전환.
+                UpdateDisplay();
+                AnalysisResult = $"이미지 자르기 완료 (크기: {w} x {h})";
+            }
+            catch (Exception ex)
+            {
+                // 예외 처리: 로그 기록 또는 사용자 알림
+                Console.WriteLine($"AnalysisResult = Error: {ex.Message}");
+            }
+        }
+
+        public void SaveRoiImage(string path, int x, int y, int w, int h)
+        {
+            try
+            {
+                _milService.SaveRoiImage(path, x, y, w, h);
+                AnalysisResult = $"ROI 저장 완료: {path}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"AnalysisResult = Error: {ex.Message}");
             }
         }
 
