@@ -7,16 +7,8 @@
       "RelativeMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|solutionrelative:readme.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|D:\\Project\\INDY\\IndyVision\\mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|solutionrelative:mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|D:\\Project\\INDY\\IndyVision\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
       "RelativeMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|solutionrelative:mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|D:\\Project\\INDY\\IndyVision\\milservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|solutionrelative:milservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|D:\\Project\\INDY\\IndyVision\\mainviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -25,6 +17,14 @@
     {
       "AbsoluteMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|D:\\Project\\INDY\\IndyVision\\algorithmparameters.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|solutionrelative:algorithmparameters.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|D:\\Project\\INDY\\IndyVision\\mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|solutionrelative:mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|D:\\Project\\INDY\\IndyVision\\milservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AFDB4DC0-2F81-4CAD-B58A-AD61FF316010}|IndyVision.csproj|solutionrelative:milservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -52,27 +52,27 @@
               "RelativeDocumentMoniker": "ReadMe.md",
               "ToolTip": "D:\\Project\\INDY\\IndyVision\\ReadMe.md",
               "RelativeToolTip": "ReadMe.md",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAAAkAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
               "WhenOpened": "2025-11-19T09:36:56.805Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 3,
               "Title": "AlgorithmParameters.cs",
               "DocumentMoniker": "D:\\Project\\INDY\\IndyVision\\AlgorithmParameters.cs",
               "RelativeDocumentMoniker": "AlgorithmParameters.cs",
               "ToolTip": "D:\\Project\\INDY\\IndyVision\\AlgorithmParameters.cs",
               "RelativeToolTip": "AlgorithmParameters.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAEEAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAO8AAAAeAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-11-17T07:17:34.661Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 2,
               "Title": "MainViewModel.cs",
               "DocumentMoniker": "D:\\Project\\INDY\\IndyVision\\MainViewModel.cs",
               "RelativeDocumentMoniker": "MainViewModel.cs",
@@ -85,7 +85,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 5,
               "Title": "MilService.cs",
               "DocumentMoniker": "D:\\Project\\INDY\\IndyVision\\MilService.cs",
               "RelativeDocumentMoniker": "MilService.cs",
@@ -93,12 +93,11 @@
               "RelativeToolTip": "MilService.cs",
               "ViewState": "AgIAAM0BAAAAAAAAAAAxwO4BAAA9AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-17T06:47:43.967Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-17T06:47:43.967Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 1,
               "Title": "MainWindow.xaml",
               "DocumentMoniker": "D:\\Project\\INDY\\IndyVision\\MainWindow.xaml",
               "RelativeDocumentMoniker": "MainWindow.xaml",
@@ -110,7 +109,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 4,
               "Title": "MainWindow.xaml.cs",
               "DocumentMoniker": "D:\\Project\\INDY\\IndyVision\\MainWindow.xaml.cs",
               "RelativeDocumentMoniker": "MainWindow.xaml.cs",
