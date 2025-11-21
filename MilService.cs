@@ -52,9 +52,30 @@ namespace IndyVision
         private ImageSource _cachedOriginal;
         private ImageSource _cachedProcessed;
 
+        // GMF 관련 MIL 객체들
+        private MIL_ID MilGmfContext = MIL.M_NULL;      // GMF 설정 저장소
+        private MIL_ID MilGmfResult = MIL.M_NULL;       // 찾은 결과 저장소
+        private MIL_ID MilModelImage = MIL.M_NULL;      // 로드한 ROI 모델 이미지
+
+        private MIL_ID MilBinaryModelImage = MIL.M_NULL;  // 이진화된 모델 이미지
+
+
+        // 현재 상태 확인용 (True면 모델 정의 중, False면 검사 중)
+        public bool IsModelDefinitionMode { get; private set; } = false;
+
+
         public MilService()
         {
             InitializeMIL();
+            AllocGmfObjects();  // GMF 객체 할당.
+        }
+
+        private void AllocGmfObjects()
+        {
+            // GMF (Model Finder) 도구 할당
+            // M_GEOMTRIC: 기하학적 패턴 매칭 (회전, 크기 변화에 강함)
+            MIL.MmodAlloc(MilSystem, MIL.M_GEOMETRIC, MIL.M_DEFAULT, ref MilGmfContext);    // 모델 파인더 컨텍스 할당 (GMF 설정값 저장할 컨텍스트)
+            MIL.MmodAllocResult(MilSystem, MIL.M_DEFAULT, ref MilGmfResult);        // GMF 결과값 저장 버퍼
         }
 
         private void InitializeMIL()
@@ -439,6 +460,129 @@ namespace IndyVision
                     }
                     break;
 
+                case "Geometric Model Finder (GMF)":
+                    if(parameters is GmfParams gmfParams)
+                    {
+                        // [매우 중요] MIL의 GMF 설정에는 전체 검색 환경(Context)에 거는 설정과, 개별 모델(Model)에 거는 설정이 구분되어 있음
+                        // MmodControl 함수를 호출 할때 정확한 주소 지정이 필요.
+                        //  MIL.M_DEFAULT : 모든 모델, 현재 모델에 설정을 적용
+                        //  MIL.M_CONTEXT : 설정 자체가 적용되지 않는 상황.
+                        // M_SHARED_EDGES, M_SPEED: 환경 설정이므로 **M_CONTEXT**가 맞습니다.
+                        // M_NUMBER, M_ACCEPTANCE, M_ANGLE, M_SCALE: 모델별 설정이므로 모델 인덱스(0)나 **MIL.M_DEFAULT**를 써야 합니다.
+                        // 예를 들어 M_NUMBER(개수)와 M_ACCEPTANCE(점수)를 M_CONTEXT 로 설정하면, 잘못된 명령으로 간주하거나, 무시할수 있으며, 
+                        // 결국 기본값(개수:1, 점수: 80점) 설정이 유지된채로 동작합니다.
+
+                        if (IsModelDefinitionMode) return "모델 정의 모드입니다. 'Train Model'을 눌러 완료하세요.";
+                        if (MilGmfContext == MIL.M_NULL) return "정의된 모델 데이터가 없습니다.";
+
+                        if (MilGmfResult != MIL.M_NULL) MIL.MbufFree(MilGmfResult);
+                        MIL.MmodAllocResult(MilSystem, MIL.M_DEFAULT, ref MilGmfResult);
+
+                        // 파라미터 설정
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_ACCEPTANCE,gmfParams.MinScore);
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_CERTAINTY, Math.Max(10.0, gmfParams.MinScore - 20));  // ★변경: -30 → -50
+                        //MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_NUMBER, MIL.M_ALL);
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_NUMBER, MIL.M_ALL);
+
+                        MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_SHARED_EDGES, MIL.M_ENABLE);    // 검색 엔진의 성격이므로 M_CONTEXT
+                        MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_OVERLAP, 100.0);                // 검색 엔지의 성걱이므로 M_CONTEXT
+
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_ANGLE, 0.0);
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_ANGLE_DELTA_NEG, 10.0);
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_ANGLE_DELTA_POS, 10.0);
+
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_SCALE, 1.0);
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_SCALE_MIN_FACTOR, 0.8);
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_SCALE_MAX_FACTOR, 1.2);
+
+
+
+                        MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_TARGET_CACHING, MIL.M_DISABLE);
+                        MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_DETAIL_LEVEL, MIL.M_HIGH);
+                        MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_SPEED, MIL.M_MEDIUM);
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_POLARITY, MIL.M_SAME);
+
+                        // 검색 실행
+                        MIL.MmodFind(MilGmfContext, MilDestImage, MilGmfResult);
+
+                        MIL.MappTimer(MIL.M_DEFAULT, MIL.M_TIMER_RESET + MIL.M_SYNCHRONOUS, MIL.M_NULL);
+
+                        MIL.MmodFind(MilGmfContext, MilDestImage, MilGmfResult);
+
+
+                        // 3. 결과 가져오기
+                        long numFound = 0;
+                        MIL.MmodGetResult(MilGmfResult, MIL.M_DEFAULT, MIL.M_NUMBER + MIL.M_TYPE_MIL_INT, ref numFound);
+
+                        if (numFound > 0)
+                        {
+                            // 컬퍼 버퍼 생성
+                            MIL_ID MilColorDisplay = MIL.M_NULL;
+                            long w = 0, h = 0;
+                            MIL.MbufInquire(MilDestImage, MIL.M_SIZE_X, ref w);
+                            MIL.MbufInquire(MilDestImage, MIL.M_SIZE_Y, ref h);
+
+                            MIL.MbufAllocColor(MilSystem, 3, w, h, 8 + MIL.M_UNSIGNED, MIL.M_IMAGE + MIL.M_PROC + MIL.M_PACKED, ref MilColorDisplay);
+                            MIL.MbufCopy(MilDestImage, MilColorDisplay);
+
+                            // 선 두께와 폰트 크기 키우기 (잘보이게)
+                            MIL.MgraControl(MIL.M_DEFAULT, MIL.M_BACKGROUND_COLOR, MIL.M_TRANSPARENT);
+                            MIL.MgraControl(MIL.M_DEFAULT, MIL.M_LINE_THICKNESS, 3);
+                            MIL.MgraControl(MIL.M_DEFAULT, MIL.M_FONT_X_SCALE, 2.0);
+                            MIL.MgraControl(MIL.M_DEFAULT, MIL.M_FONT_Y_SCALE, 2.0);
+
+                            // ------------------------------------------------------------
+                            // [그리기 1] MmodDraw를 이용한 자동 그리기 (박스, 윤곽선)
+                            // ------------------------------------------------------------
+                            MIL.MgraColor(MIL.M_DEFAULT, MIL.M_COLOR_RED);
+                            MIL.MmodDraw(MIL.M_DEFAULT, MilGmfResult, MilColorDisplay, MIL.M_DRAW_BOX, MIL.M_DEFAULT, MIL.M_DEFAULT);
+
+                            // 초록색 모델 윤곽선 (정확한 매칭 모양 확인용) - M_DRAW_EDGES 사용
+                            MIL.MgraColor(MIL.M_DEFAULT, MIL.M_COLOR_GREEN);
+                            MIL.MmodDraw(MIL.M_DEFAULT, MilGmfResult, MilColorDisplay, MIL.M_DRAW_EDGES, MIL.M_DEFAULT, MIL.M_DEFAULT);
+
+                            // ------------------------------------------------------------
+                            // [그리기 2] 직접 좌표를 가져와서 수동 그리기 (확실한 표시)
+                            // ------------------------------------------------------------
+                            double[] posX = new double[numFound];
+                            double[] posY = new double[numFound];
+                            double[] score = new double[numFound];
+
+                            // 결과 데이터 배열로 가져오기
+                            MIL.MmodGetResult(MilGmfResult, MIL.M_DEFAULT, MIL.M_POSITION_X, posX);
+                            MIL.MmodGetResult(MilGmfResult, MIL.M_DEFAULT, MIL.M_POSITION_Y, posY);
+                            MIL.MmodGetResult(MilGmfResult, MIL.M_DEFAULT, MIL.M_SCORE, score);
+
+                            for (int i = 0; i < numFound; i++)
+                            {
+                                // 파란색 십자선 (중심)
+                                MIL.MgraColor(MIL.M_DEFAULT, MIL.M_COLOR_BLUE);
+                                long cx = (long)posX[i];
+                                long cy = (long)posY[i];
+                                MIL.MgraLine(MIL.M_DEFAULT, MilColorDisplay, cx - 20, cy, cx + 20, cy);
+                                MIL.MgraLine(MIL.M_DEFAULT, MilColorDisplay, cx, cy - 20, cx, cy + 20);
+
+                                // 노란색 텍스트 (점수)
+                                MIL.MgraColor(MIL.M_DEFAULT, MIL.M_COLOR_YELLOW);
+                                MIL.MgraText(MIL.M_DEFAULT, MilColorDisplay, cx + 25, cy, $"Score: {score[i]:F1}%");
+                            }
+
+                            // ------------------------------------------------------------
+                            // [마무리] 결과 화면 갱신
+                            // ------------------------------------------------------------
+                            _cachedProcessed = ConvertMilToBitmap(MilColorDisplay);
+                            MIL.MbufFree(MilColorDisplay);
+
+                            resultMessage = $"GMF 성공: {numFound}개 검출 (MinScore: {gmfParams.MinScore}%)";
+                            return resultMessage; // 여기서 리턴 (아래쪽 흑백 갱신 방지)
+
+                        }
+                        else
+                        {
+                            resultMessage = "GMF 검색 실패: 찾은 모델 없음.";
+                        }
+                    }
+                    break;
             }
 
             // 3. 결과 갱신: 처리된 이미지를 다시 화면용 비트맵으로 변환해 둡니다.
@@ -529,10 +673,15 @@ namespace IndyVision
 
         public void Cleanup()
         {
+            if (MilModelImage != MIL.M_NULL) MIL.MbufFree(MilModelImage);
+            if (MilGmfResult != MIL.M_NULL) MIL.MbufFree(MilGmfResult);
+            if(MilGmfContext != MIL.M_NULL) MIL.MbufFree(MilGmfContext);
+
             // 할당의 '역순'으로 해제하는 것이 원칙입니다.
             FreeImages();                                                   // 1. 이미지(Buffer) 해제
             if (MilSystem != MIL.M_NULL) MIL.MsysFree(MilSystem);           // 2. 시스템 해제
             if (MilApplication != MIL.M_NULL) MIL.MappFree(MilApplication); // 3. 어플리케이션 해제
+
         }
 
         public void CropImage(int x, int y, int w, int h)
@@ -591,6 +740,195 @@ namespace IndyVision
         }
 
 
+        // ROI 이미지 파일 로드 (모델용)
+        public void LoadGmfModelImage(string filePath)
+        {
+            AllocGmfObjects();
+
+            // 기존 모델 이미지 해제
+            if(MilModelImage != MIL.M_NULL) MIL.MbufFree(MilModelImage);
+
+            // 이미지 로드
+            MIL.MbufRestore(filePath, MilSystem, ref MilModelImage);
+
+            // 화면 표시용 버퍼(Dest)에 모델 이미지를 복사해서 보여줌.
+            long w = 0, h = 0;
+            MIL.MbufInquire(MilModelImage, MIL.M_SIZE_X, ref w);
+            MIL.MbufInquire(MilModelImage, MIL.M_SIZE_Y, ref h);
+
+            // Dest 버퍼 크기 재조정 (모델 크기에 맞게 )
+            if(MilDestImage != MIL.M_NULL) MIL.MbufFree(MilDestImage);
+            MIL.MbufAlloc2d(MilSystem, w, h, 8 + MIL.M_UNSIGNED, MIL.M_IMAGE + MIL.M_PROC + MIL.M_DISP, ref MilDestImage);
+            MIL.MbufCopy(MilModelImage, MilDestImage);  // 원본 복사
+
+            IsModelDefinitionMode = true;               // 모델 정의 중.
+            _cachedProcessed = ConvertMilToBitmap(MilDestImage);
+        }
+
+        // 속성 변경 시 실시간 미리보기 (윤곽선 그리기)
+        public void PreviewGmfModel(GmfParams parameters)
+        {
+            if (MilModelImage == MIL.M_NULL) return;
+
+            // 1. 초기화
+            MIL.MmodDefine(MilGmfContext, MIL.M_DELETE, MIL.M_ALL, MIL.M_DEFAULT, MIL.M_DEFAULT, MIL.M_DEFAULT, MIL.M_DEFAULT);
+            MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_SMOOTHNESS, parameters.Smoothness);
+
+            long w = 0, h = 0;
+            MIL.MbufInquire(MilModelImage, MIL.M_SIZE_X, ref w);
+            MIL.MbufInquire(MilModelImage, MIL.M_SIZE_Y, ref h);
+
+            MIL_ID tempImage = MIL.M_NULL;
+            MIL.MbufAlloc2d(MilSystem, w, h, 8 + MIL.M_UNSIGNED, MIL.M_IMAGE + MIL.M_PROC, ref tempImage);
+            MIL.MbufCopy(MilModelImage, tempImage);
+
+            try
+            {
+                // [원본 유지] 가공 없이 가장자리 1픽셀만 정리
+                MIL_ID safeRegion = MIL.M_NULL;
+                if (w > 4 && h > 4)
+                    MIL.MbufChild2d(tempImage, 1, 1, w - 2, h - 2, ref safeRegion);
+                else
+                    safeRegion = tempImage;
+
+                // 모델 정의
+                MIL.MmodDefine(MilGmfContext, MIL.M_IMAGE, safeRegion, MIL.M_DEFAULT, MIL.M_DEFAULT, MIL.M_DEFAULT, MIL.M_DEFAULT);
+
+                if (safeRegion != tempImage) MIL.MbufFree(safeRegion);
+
+                // 화면 그리기
+                MIL_ID MilColorDisplay = MIL.M_NULL;
+                MIL.MbufAllocColor(MilSystem, 3, w, h, 8 + MIL.M_UNSIGNED, MIL.M_IMAGE + MIL.M_PROC + MIL.M_PACKED, ref MilColorDisplay);
+                MIL.MbufCopy(tempImage, MilColorDisplay);
+
+                MIL.MgraColor(MIL.M_DEFAULT, MIL.M_COLOR_GREEN);
+                MIL.MgraControl(MIL.M_DEFAULT, MIL.M_LINE_THICKNESS, 2);
+                MIL.MmodDraw(MIL.M_DEFAULT, MilGmfContext, MilColorDisplay, MIL.M_DRAW_EDGES, MIL.M_DEFAULT, MIL.M_DEFAULT);
+
+                _cachedProcessed = ConvertMilToBitmap(MilColorDisplay);
+                MIL.MbufFree(MilColorDisplay);
+            }
+            finally
+            {
+                if (tempImage != MIL.M_NULL) MIL.MbufFree(tempImage);
+            }
+
+            /*
+            if (MilModelImage == MIL.M_NULL) return;
+
+            // 1. 초기화
+            MIL.MmodDefine(MilGmfContext, MIL.M_DELETE, MIL.M_ALL, MIL.M_DEFAULT, MIL.M_DEFAULT, MIL.M_DEFAULT, MIL.M_DEFAULT);
+
+            // 2. 파라미터 설정 (Smoothness: 50 추천)
+            MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_SMOOTHNESS, parameters.Smoothness);
+
+            MIL.MmodDefine(MilGmfContext, MIL.M_IMAGE, MilModelImage, MIL.M_DEFAULT, MIL.M_DEFAULT, MIL.M_DEFAULT, MIL.M_DEFAULT);
+
+            // 3. 원본 이미지 준비
+            long w = 0, h = 0;
+            MIL.MbufInquire(MilModelImage, MIL.M_SIZE_X, ref w);
+            MIL.MbufInquire(MilModelImage, MIL.M_SIZE_Y, ref h);
+
+            //MIL_ID tempImage = MIL.M_NULL;
+            //MIL.MbufAlloc2d(MilSystem, w, h, 8 + MIL.M_UNSIGNED, MIL.M_IMAGE + MIL.M_PROC, ref tempImage);
+
+            // [핵심] 원본 이미지를 그대로 복사 (변형 절대 금지!)
+            //MIL.MbufCopy(MilModelImage, tempImage);
+
+            try
+            {
+                //MIL.MmodDefine(MilGmfContext, MIL.M_IMAGE, tempImage, MIL.M_DEFAULT, MIL.M_DEFAULT, MIL.M_DEFAULT, MIL.M_DEFAULT);
+
+                // ---------------------------------------------------------
+                // 5. 화면 그리기 (사용자 확인용)
+                // ---------------------------------------------------------
+                MIL_ID MilColorDisplay = MIL.M_NULL;
+                MIL.MbufAllocColor(MilSystem, 3, w, h, 8 + MIL.M_UNSIGNED, MIL.M_IMAGE + MIL.M_PROC + MIL.M_PACKED, ref MilColorDisplay);
+
+                // 원본 이미지를 보여줍니다. (회로 패턴이 선명하게 보여야 함)
+                //MIL.MbufCopy(tempImage, MilColorDisplay);
+
+                MIL.MbufCopy(MilModelImage, MilColorDisplay);
+
+                // 초록색 윤곽선 그리기
+                MIL.MgraColor(MIL.M_DEFAULT, MIL.M_COLOR_GREEN);
+                MIL.MgraControl(MIL.M_DEFAULT, MIL.M_LINE_THICKNESS, 2);
+                // 칩 내부의 글자, 회로 위에도 초록색 선이 자글자글하게 생겨야 정상입니다.
+                MIL.MmodDraw(MIL.M_DEFAULT, MilGmfContext, MilColorDisplay, MIL.M_DRAW_EDGES, MIL.M_DEFAULT, MIL.M_DEFAULT);
+
+                _cachedProcessed = ConvertMilToBitmap(MilColorDisplay);
+                MIL.MbufFree(MilColorDisplay);
+            }
+            finally
+            {
+                //if (tempImage != MIL.M_NULL) MIL.MbufFree(tempImage);
+            }
+            */
+
+
+
+        }
+
+        // [기능] 모델 등록 확정 (Preprocess)
+        public void TrainGmfModel(GmfParams parameters)
+        {
+            // ------------------------------------------------------------
+            // [핵심 수정] 모델의 성격을 결정하는 설정은 '학습 전'에 해야 합니다.
+            // ProcessImage에서 하면 늦습니다!
+            // ------------------------------------------------------------
+
+            // 1. 검색 정밀도 설정 (High Detail, Medium Speed)
+            // 복잡한 반도체 패턴을 인식하기 위해 디테일 레벨을 높입니다.
+            MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_DETAIL_LEVEL, MIL.M_HIGH);
+            MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_SPEED, 2); // Medium
+
+            // 2. 극성 설정 (SAME)
+            // 원본끼리 비교하므로 색상이 같습니다.
+            MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_POLARITY, MIL.M_SAME);
+
+            // 3. ★전처리 수행★ (위 설정들을 구워서 모델을 완성합니다)
+            MIL.MmodPreprocess(MilGmfContext, MIL.M_DEFAULT);
+
+            IsModelDefinitionMode = false;
+
+            // 4. 화면 복구 (기존 코드)
+            if (MilSourceImage != MIL.M_NULL)
+            {
+                long w = 0, h = 0;
+                MIL.MbufInquire(MilSourceImage, MIL.M_SIZE_X, ref w);
+                MIL.MbufInquire(MilSourceImage, MIL.M_SIZE_Y, ref h);
+
+                if (MilDestImage != MIL.M_NULL) MIL.MbufFree(MilDestImage);
+                MIL.MbufAlloc2d(MilSystem, w, h, 8 + MIL.M_UNSIGNED, MIL.M_IMAGE + MIL.M_DISP + MIL.M_PROC, ref MilDestImage);
+
+                MIL.MbufCopy(MilSourceImage, MilDestImage);
+                _cachedProcessed = ConvertMilToBitmap(MilDestImage);
+            }
+
+
+
+
+            /*
+            // 1. 전처리 수행
+            MIL.MmodPreprocess(MilGmfContext, MIL.M_DEFAULT);
+
+            IsModelDefinitionMode = false;
+
+            // 2. 화면 복구
+            if (MilSourceImage != MIL.M_NULL)
+            {
+                long w = 0, h = 0;
+                MIL.MbufInquire(MilSourceImage, MIL.M_SIZE_X, ref w);
+                MIL.MbufInquire(MilSourceImage, MIL.M_SIZE_Y, ref h);
+
+                if (MilDestImage != MIL.M_NULL) MIL.MbufFree(MilDestImage);
+                MIL.MbufAlloc2d(MilSystem, w, h, 8 + MIL.M_UNSIGNED, MIL.M_IMAGE + MIL.M_DISP + MIL.M_PROC, ref MilDestImage);
+
+                MIL.MbufCopy(MilSourceImage, MilDestImage);
+                _cachedProcessed = ConvertMilToBitmap(MilDestImage);
+            }
+            */
+        }
     }
 
     // 블롭 정보를 저장할 간단한 클래스

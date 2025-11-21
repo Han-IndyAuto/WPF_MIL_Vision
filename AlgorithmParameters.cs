@@ -240,4 +240,36 @@ namespace IndyVision
         // empty for future use
     }
 
+    public class GmfParams : AlgorithmParamsBase
+    {
+        // 모델 정의용 파라미터
+        // 윤관선을 얼마나 부드럽게 처리 할지(0 ~ 100). 높은 값일수록 자잘한 엣지는 무시.
+        private double _smoothness = 50;
+        public double Smoothness
+        {
+            get => _smoothness;
+            set
+            {
+                if (_smoothness == value) return;
+                _smoothness = value;
+                OnPropertyChanged();
+            }
+        }
+
+        // 검색용 파라미터 (실행 단계)
+        // 최소 일치률 (0 ~ 100). 이 점수 이상인것만 찾는다.
+        private double _minScore = 60;
+        public double MinScore
+        {
+            get => _minScore;
+            set
+            {
+                if (_minScore == value) return;
+                _minScore = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+
 }

@@ -39,7 +39,8 @@ namespace IndyVision
                 "Adaptive Threshold (적응형 이진화)",
                 "Morphology (모폴로지)",
                 "Edge Detection (엣지 검출)",
-                "Blob Analysis (블롭 분석)"
+                "Blob Analysis (블롭 분석)",
+                "Geometric Model Finder (GMF)"
             };
 
             // 3. 자동 적용 타이머 초기화
@@ -219,6 +220,11 @@ namespace IndyVision
                 case "Blob Analysis (블롭 분석)":
                     CurrentParameters = new BlobParams();
                     break;
+
+                case "Geometric Model Finder (GMF)":
+                    CurrentParameters = new GmfParams();
+                    break;
+
                 default:
                     CurrentParameters = null; // 설정이 필요 없는 경우
                     break;
@@ -278,6 +284,64 @@ namespace IndyVision
         public ICommand LoadImageCommand => new RelayCommand(LoadImage);
         public ICommand ApplyAlgorithmCommand => new RelayCommand(ApplyAlgorithm);
 
+        public ICommand LoadModelCommand => new RelayCommand(LoadModel);
+        public ICommand TrainModelCommand => new RelayCommand(TrainModel);
+
+        // ROI로 저장해 둔 작은 이미지를 불러와 모델 정의 모드로 진입.
+        private void LoadModel(object obj)
+        {
+            OpenFileDialog dlg = new OpenFileDialog { Filter = "Image Files|*.bmp;*.jpg;*.png;*.tif" };
+
+            if(dlg.ShowDialog() == true)
+            {
+                try
+                {
+                    // GMF 모델용 이미지를 로드하고, 화면에 보여줌 (모델링 모드 진입)
+                    _milService.LoadGmfModelImage(dlg.FileName);
+
+                    // 화면 갱신
+                    ShowOriginal = false;
+                    UpdateDisplay();
+
+                    // GMF 파라미터가 있으면 초기 미리보기 실행.
+                    if(CurrentParameters is GmfParams gmfParams)
+                    {
+                        _milService.PreviewGmfModel(gmfParams);
+                        UpdateDisplay();
+                    }
+
+                    AnalysisResult = "모델 이미지 로드됨. 속성을 조절하여 모델을 정의하세요.";
+                }
+                catch (Exception ex)
+                {
+                    AnalysisResult = "Error: " + ex.Message;
+                }
+            }
+        }
+
+
+        private void TrainModel(object obj)
+        {
+            if (CurrentParameters is GmfParams gmfParams)
+            {
+                try
+                {
+                    _milService.TrainGmfModel(gmfParams);
+                    AnalysisResult = "모델 등록 완료! 이제 검사 이미지를 열고 '적용'을 누르세요";
+
+                    // 다시 검사 원본 이미지 보기로 전환.
+                    ShowOriginal = true;
+                    UpdateDisplay();
+                }
+                catch (Exception ex)
+                {
+                    AnalysisResult = "Train Error: " + ex.Message;
+                }
+            }
+        }
+
+
+
         // [파일 열기] 버튼을 눌렀을 때
         private void LoadImage(object obj)
         {
@@ -301,19 +365,38 @@ namespace IndyVision
             // 알고리즘 선택을 안 했으면 아무것도 안 함
             if (string.IsNullOrEmpty(SelectedAlgorithm)) return;
 
-            // [중요] MilService에게 "이 알고리즘으로, 이 설정값(CurrentParameters)을 써서 처리해줘!"라고 명령합니다.
-            // 여기서 사용자가 슬라이더로 조정한 값들이 MilService로 넘어갑니다.
-            // 현재 설정된 파라미터(_currentParameters)를 넘겨줌
-            //_milService.ProcessImage(SelectedAlgorithm, CurrentParameters);   // 기존 코드
+            // GMF 모드일때, 슬라이더를 움직이면 검사가 아니라 모델 미리보기를 적용
+            if (SelectedAlgorithm.Contains("GMF") && _milService.IsModelDefinitionMode)
+            {
+                if (CurrentParameters is GmfParams gmfParams)
+                {
+                    _milService.PreviewGmfModel(gmfParams); // 모델 윤곽선 미리보기
+                    UpdateDisplay();
+                    return; // 검사는 하지 않고 리턴
+                }
+            }
 
-            // [수정] ProcessImage가 결과를 반환하도록 변경하거나, 호출 후 결과를 받아옴
-            string result = _milService.ProcessImage(SelectedAlgorithm, CurrentParameters);
-            AnalysisResult = result;
+            // 일반 검사 로직 (기존과 동일)
+            try
+            {
+                // [중요] MilService에게 "이 알고리즘으로, 이 설정값(CurrentParameters)을 써서 처리해줘!"라고 명령합니다.
+                // 여기서 사용자가 슬라이더로 조정한 값들이 MilService로 넘어갑니다.
+                // 현재 설정된 파라미터(_currentParameters)를 넘겨줌
+                //_milService.ProcessImage(SelectedAlgorithm, CurrentParameters);   // 기존 코드
 
-            // 처리가 끝났으니 결과를 보여주기 위해 "원본 보기"를 끕니다.
-            ShowOriginal = false; // 적용 후엔 결과 보기로 자동 전환
-            // 화면 갱신 (결과 이미지가 뜸)
-            UpdateDisplay();
+                // [수정] ProcessImage가 결과를 반환하도록 변경하거나, 호출 후 결과를 받아옴
+                string result = _milService.ProcessImage(SelectedAlgorithm, CurrentParameters);
+                AnalysisResult = result;
+
+                // 처리가 끝났으니 결과를 보여주기 위해 "원본 보기"를 끕니다.
+                ShowOriginal = false; // 적용 후엔 결과 보기로 자동 전환
+                                      // 화면 갱신 (결과 이미지가 뜸)
+                UpdateDisplay();
+            }
+            catch (Exception ex) 
+            {
+                AnalysisResult = "처리 중 에러: " + ex.Message;
+            }
         }
 
         // 프로그램 종료 시 호출되어 메모리를 청소합니다.
