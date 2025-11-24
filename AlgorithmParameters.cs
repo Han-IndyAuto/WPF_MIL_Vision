@@ -258,7 +258,7 @@ namespace IndyVision
 
         // 검색용 파라미터 (실행 단계)
         // 최소 일치률 (0 ~ 100). 이 점수 이상인것만 찾는다.
-        private double _minScore = 60;
+        private double _minScore = 65;
         public double MinScore
         {
             get => _minScore;
@@ -269,6 +269,145 @@ namespace IndyVision
                 OnPropertyChanged();
             }
         }
+
+        // 확신도 (Certainty): 후보군 선정 기준
+        private double _certainty = 20;
+        public double Certainty
+        {
+            get => _certainty;
+            set
+            {
+                if(value == _certainty) return;
+                _certainty = value; 
+                OnPropertyChanged();
+            }
+        }
+
+        // 검색 속도(Speed)
+        // 0: Very Faster, 1:Faster, 2: Medium, 3: Robust, 4: Very Robust
+        private int _searchSpeed = 2;
+        public int SearchSpeed
+        {
+            get => _searchSpeed;
+            set
+            {
+                if (_searchSpeed == value) return;
+                _searchSpeed = value;
+                OnPropertyChanged();
+            }
+        }
+
+        // [추가] 디테일 레벨 (Detail Level)
+        // 0: Medium, 1: High (복잡한 패턴용)
+        private int _detailLevel = 1;
+        public int DetailLevel
+        {
+            get => _detailLevel;
+            set
+            {
+                if (_detailLevel == value) return;
+                _detailLevel = value;
+                OnPropertyChanged();
+            }
+        }
+
+        // 4. 검색 개수 설정 (M_NUMBER)
+        // [핵심] "모두 찾기" 체크박스용
+        private bool _findAllOccurrences = true;
+        public bool FindAllOccurrences
+        {
+            get => _findAllOccurrences;
+            set 
+            {
+                if (_findAllOccurrences == value) return;
+
+                 _findAllOccurrences = value; 
+                OnPropertyChanged();  
+            }
+        }
+
+        // [추가] 검색 개수 (Number)
+        private int _maxOccurrences = 1000;
+        public int MaxOccurrences
+        {
+            get => _maxOccurrences;
+            set 
+            {
+                if (_maxOccurrences == value) return; 
+                _maxOccurrences = value; 
+                OnPropertyChanged(); 
+            }
+        }
+
+        // [추가] 각도 범위 (Angle Delta)
+        // +- 범위 (예: 10이면 -10도 ~ +10도)
+        private double _angleDelta = 5.0;
+        public double AngleDelta
+        {
+            get => _angleDelta;
+            set 
+            {
+                if (_angleDelta == value) return;
+                 _angleDelta = value; 
+                OnPropertyChanged();
+            }
+        }
+
+        // 6. 크기 (Scale)
+        private double _scaleMinFactor = 0.8;
+        public double ScaleMinFactor
+        {
+            get => _scaleMinFactor;
+            set 
+            {
+                if (_scaleMinFactor == value) return; 
+                _scaleMinFactor = value; 
+                OnPropertyChanged();
+            }
+        }
+
+        private double _scaleMaxFactor = 1.2;
+        public double ScaleMaxFactor
+        {
+            get => _scaleMaxFactor;
+            set 
+            {
+                if (_scaleMaxFactor == value) return;
+
+                 _scaleMaxFactor = value; 
+                OnPropertyChanged();
+            }
+        }
+
+        // 7. 중복 제거 관련 (true: 중복허용, false: 중복제거)
+        private bool _sharedEdges = false; // M_SHARED_EDGES
+        public bool SharedEdges
+        {
+            get => _sharedEdges;
+            set 
+            {
+                if (_sharedEdges == value) return;
+
+                 _sharedEdges = value; 
+                OnPropertyChanged();
+            }
+        }
+
+        private double _overlap = 50.0; // M_OVERLAP
+        public double Overlap
+        {
+            get => _overlap;
+            set 
+            {
+                if (_overlap != value) return;
+
+                _overlap = value; 
+                OnPropertyChanged();
+            }
+        }
+
+
+
     }
 
 

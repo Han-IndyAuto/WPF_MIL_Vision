@@ -89,6 +89,8 @@ namespace IndyVision
             // MIL application의 전역 설정(옵션)을 변경하는 함수.
             MIL.MappControl(MilApplication, MIL.M_ERROR, MIL.M_PRINT_DISABLE);
 
+            //MIL.MappControl(MilApplication, MIL.M_PROCESSING, MIL.M_OPTIMIZATIONS);
+
             // 2. MsysAlloc: 어떤 장비를 쓸지 결정합니다.
             // "M_SYSTEM_HOST": 별도 보드 없이 PC의 CPU/RAM을 쓰겠다는 뜻입니다.
             // 만약 Matrox Solios 보드를 쓴다면 "M_SYSTEM_SOLIOS"로 바뀝니다.
@@ -478,6 +480,66 @@ namespace IndyVision
                         if (MilGmfResult != MIL.M_NULL) MIL.MbufFree(MilGmfResult);
                         MIL.MmodAllocResult(MilSystem, MIL.M_DEFAULT, ref MilGmfResult);
 
+                        // ============================================================
+                        // [1] 모델별 설정 (개별 모델에 적용되는 값) -> M_DEFAULT 사용
+                        // ============================================================
+
+                        // 1. 점수 & 확신도
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_ACCEPTANCE, gmfParams.MinScore);
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_CERTAINTY, gmfParams.Certainty);
+
+                        // 2. 검색 개수 (사용자 요청 반영: ALL 또는 숫자)
+                        if (gmfParams.FindAllOccurrences)
+                        {
+                            MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_NUMBER, MIL.M_ALL);
+                        }
+                        else
+                        {
+                            MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_NUMBER, gmfParams.MaxOccurrences);
+                        }
+
+                        // 3. 회전 범위 (기준은 0도)
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_ANGLE, 0.0);
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_ANGLE_DELTA_NEG, gmfParams.AngleDelta);
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_ANGLE_DELTA_POS, gmfParams.AngleDelta);
+
+                        // 4. 크기 범위
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_SCALE, 1.0);
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_SCALE_MIN_FACTOR, gmfParams.ScaleMinFactor);
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_SCALE_MAX_FACTOR, gmfParams.ScaleMaxFactor);
+
+                        // 5. 극성 (SAME 유지)
+                        MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_POLARITY, MIL.M_SAME);
+
+
+                        // ============================================================
+                        // [2] 컨텍스트 설정 (검색 엔진 전체 성격) -> M_CONTEXT 사용
+                        // ============================================================
+
+                        // 6. 중복 제거 및 공유 엣지
+                        double sharedEdgesVal = gmfParams.SharedEdges ? MIL.M_ENABLE : MIL.M_DISABLE;
+                        MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_SHARED_EDGES, sharedEdgesVal);
+
+                        MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_OVERLAP, gmfParams.Overlap);
+
+                        // 7. 검색 속도 및 디테일
+                        MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_SPEED, gmfParams.SearchSpeed);
+
+                        // Detail Level 변환 (0: Medium, 1: High)
+                        long detailVal = (gmfParams.DetailLevel == 1) ? MIL.M_HIGH : MIL.M_MEDIUM;
+                        MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_DETAIL_LEVEL, detailVal);
+
+                        // 캐싱 끄기 (안전장치)
+                        MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_TARGET_CACHING, MIL.M_DISABLE);
+
+                        // ★★★ [수정됨] 여기서 Preprocess를 반드시 호출해야 합니다! ★★★
+                        // 위에서 Angle, Scale, Polarity 등을 변경했기 때문에, 
+                        // 이전에 Train 버튼으로 했던 학습은 '무효'가 되었습니다.
+                        // 검색 직전에 다시 한번 학습 상태를 갱신해 줘야 합니다.
+                        MIL.MmodPreprocess(MilGmfContext, MIL.M_DEFAULT);
+
+
+                        /*
                         // 파라미터 설정
                         MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_ACCEPTANCE,gmfParams.MinScore);
                         MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_CERTAINTY, Math.Max(10.0, gmfParams.MinScore - 20));  // ★변경: -30 → -50
@@ -506,6 +568,7 @@ namespace IndyVision
                         MIL.MmodFind(MilGmfContext, MilDestImage, MilGmfResult);
 
                         MIL.MappTimer(MIL.M_DEFAULT, MIL.M_TIMER_RESET + MIL.M_SYNCHRONOUS, MIL.M_NULL);
+                        */
 
                         MIL.MmodFind(MilGmfContext, MilDestImage, MilGmfResult);
 
@@ -748,7 +811,7 @@ namespace IndyVision
             // 기존 모델 이미지 해제
             if(MilModelImage != MIL.M_NULL) MIL.MbufFree(MilModelImage);
 
-            // 이미지 로드
+            // Model 이미지 로드
             MIL.MbufRestore(filePath, MilSystem, ref MilModelImage);
 
             // 화면 표시용 버퍼(Dest)에 모델 이미지를 복사해서 보여줌.
@@ -791,7 +854,7 @@ namespace IndyVision
                 else
                     safeRegion = tempImage;
 
-                // 모델 정의
+                // 모델 정의 (Model Image 등록)
                 MIL.MmodDefine(MilGmfContext, MIL.M_IMAGE, safeRegion, MIL.M_DEFAULT, MIL.M_DEFAULT, MIL.M_DEFAULT, MIL.M_DEFAULT);
 
                 if (safeRegion != tempImage) MIL.MbufFree(safeRegion);
@@ -874,17 +937,26 @@ namespace IndyVision
         {
             // ------------------------------------------------------------
             // [핵심 수정] 모델의 성격을 결정하는 설정은 '학습 전'에 해야 합니다.
+            // M_IMAGE(모델이미지)
+            // M_SMOOTHNESS
+            // M_DETAIL_LEVEL : 복잡한 패턴일수록 높게 설정 (M_MEDIM < M_HIGH < M_VERY_HIGH)
+            // M_POLARITY : 모델의 명암 극성 (M_SAME: 동일, M_REVERSE: 반전, M_ANY: 무관)
+            // M_SPEED
             // ProcessImage에서 하면 늦습니다!
             // ------------------------------------------------------------
 
             // 1. 검색 정밀도 설정 (High Detail, Medium Speed)
             // 복잡한 반도체 패턴을 인식하기 위해 디테일 레벨을 높입니다.
-            MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_DETAIL_LEVEL, MIL.M_HIGH);
-            MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_SPEED, 2); // Medium
+            //MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_DETAIL_LEVEL, MIL.M_HIGH);
+            //MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_SPEED, 2); // Medium
+
+            MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_DETAIL_LEVEL, parameters.DetailLevel);
+            MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_SPEED, parameters.SearchSpeed);
 
             // 2. 극성 설정 (SAME)
             // 원본끼리 비교하므로 색상이 같습니다.
-            MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_POLARITY, MIL.M_SAME);
+            //MIL.MmodControl(MilGmfContext, MIL.M_CONTEXT, MIL.M_POLARITY, MIL.M_SAME);
+            MIL.MmodControl(MilGmfContext, MIL.M_DEFAULT, MIL.M_POLARITY, MIL.M_SAME);
 
             // 3. ★전처리 수행★ (위 설정들을 구워서 모델을 완성합니다)
             MIL.MmodPreprocess(MilGmfContext, MIL.M_DEFAULT);

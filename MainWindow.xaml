@@ -182,11 +182,41 @@
 
                 <Grid Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="50"/>
+                        <ColumnDefinition Width="40"/>
                     </Grid.ColumnDefinitions>
-                    <Slider Maximum="100" Minimum="0" Value="{Binding Smoothness}" VerticalAlignment="Center"/>
-                    <TextBox Text="{Binding Smoothness}" Grid.Column="1" Margin="5,0,0,0" TextAlignment="Center"/>
+
+                    <TextBlock Grid.Column="0" Text="Smoothness:" VerticalAlignment="Center"/>
+                    <Slider Grid.Column="1" Maximum="100" Minimum="0" Value="{Binding Smoothness}" VerticalAlignment="Center" Margin="5,0" />
+                    <TextBox Grid.Column="2" Text="{Binding Smoothness}" Margin="5,0,0,0" TextAlignment="Center"/>
+                </Grid>
+
+                <Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Speed:" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" SelectedIndex="{Binding SearchSpeed}">
+                        <ComboBoxItem Content="0: Very Fast"/>
+                        <ComboBoxItem Content="1: Fast"/>
+                        <ComboBoxItem Content="2: Medium"/>
+                        <ComboBoxItem Content="3: Robust"/>
+                        <ComboBoxItem Content="4: Very Robust"/>
+                    </ComboBox>
+                </Grid>
+
+                <Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Detail Level:" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" SelectedIndex="{Binding DetailLevel}">
+                        <ComboBoxItem Content="Medium"/>
+                        <ComboBoxItem Content="High"/>
+                    </ComboBox>
                 </Grid>
 
                 <Button Content="Train Model (모델 등록 완료)"
@@ -196,17 +226,130 @@
                 <Separator Margin="0,0,0,10"/>
 
                 <TextBlock Text="[Step 2] Search Setting (검사 설정)" FontWeight="Bold" Margin="0,0,0,5"/>
-                <TextBlock Text="Min Score (최소 일치율 %)" Margin="0,0,0,5"/>
 
-                <Grid>
+                <Grid Margin="0,0,0,5">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="50"/>
+                        <ColumnDefinition Width="40"/>
                     </Grid.ColumnDefinitions>
 
-                    <Slider Maximum="100" Minimum="0" Value="{Binding MinScore}" VerticalAlignment="Center"/>
-                    <TextBox Text="{Binding MinScore}" Grid.Column="1" Margin="5,0,0,0" TextAlignment="Center" />
+                    <TextBlock Text="Min Score:" VerticalAlignment="Center" ToolTip="Acceptance Level"/>
+                    <Slider Grid.Column="1" Maximum="100" Minimum="0" Value="{Binding MinScore}" Margin="5,0"/>
+                    <TextBox Grid.Column="2" Text="{Binding MinScore}" TextAlignment="Center"/>
                 </Grid>
+
+                <Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="40"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Certainty:" VerticalAlignment="Center" ToolTip="Candidate Acceptance Level"/>
+                    <Slider Grid.Column="1" Maximum="100" Minimum="0" Value="{Binding Certainty}" Margin="5,0"/>
+                    <TextBox Grid.Column="2" Text="{Binding Certainty}" TextAlignment="Center"/>
+                </Grid>
+
+                <CheckBox Content="Find All(모두 찾기)" IsChecked="{Binding FindAllOccurrences}" Margin="0,5,0,2" FontWeight="Bold"/>
+                <Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="40"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Max Count:" VerticalAlignment="Center" />
+                    <Slider Grid.Column="1" Maximum="500" Minimum="1" Value="{Binding MaxOccurrences}" Margin="5,0">
+                        <Slider.Style>
+                            <Style TargetType="Slider">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding FindAllOccurrences}" Value="True">
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Slider.Style>
+                    </Slider>
+                    <TextBox Grid.Column="2" Text="{Binding MaxOccurrences}" TextAlignment="Center">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding FindAllOccurrences}" Value="True">
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+                </Grid>
+
+
+                <TextBlock Text="-- Geometry --" Foreground="Gray" Margin="0,5"/>
+                
+                <Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="40"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Angle (+/-):" VerticalAlignment="Center"/>
+                    <Slider Grid.Column="1" Maximum="180" Minimum="0" Value="{Binding AngleDelta}" Margin="5,0"/>
+                    <TextBox Grid.Column="2" Text="{Binding AngleDelta}" TextAlignment="Center"/>
+                </Grid>
+
+                <Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="40"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Scale min:" VerticalAlignment="Center"/>
+                    <Slider Grid.Column="1" Maximum="1.5" Minimum="1.0" Value="{Binding ScaleMaxFactor}" Margin="5,0"/>
+                    <TextBox Grid.Column="2" Text="{Binding ScaleMaxFactor}" TextAlignment="Center"/>
+                </Grid>
+
+                <TextBlock Text="-- Overlap &amp; Advanced --" Foreground="Gray" Margin="0,5"/>
+                <CheckBox Content="Shared Edges (공유 엣지 허용)" IsChecked="{Binding SharedEdges}" Margin="0,0,0,2"/>
+                <Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="40"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Overlap (%):" VerticalAlignment="Center"/>
+                    <Slider Grid.Column="1" Maximum="100" Minimum="0" Value="{Binding Overlap}" Margin="5,0"/>
+                    <TextBox Grid.Column="2" Text="{Binding Overlap}" TextAlignment="Center"/>
+                </Grid>
+
+
+                <!--<Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Speed:" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" SelectedIndex="{Binding SearchSpeed}">
+                        <ComboBoxItem Content="0: Very Fast"/>
+                        <ComboBoxItem Content="1: Fast"/>
+                        <ComboBoxItem Content="2: Medium"/>
+                        <ComboBoxItem Content="3: Robust"/>
+                        <ComboBoxItem Content="4: Very Robust"/>
+                    </ComboBox>
+                </Grid>
+
+                <Grid Margin="0,0,0,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Detail Level:" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Column="1" SelectedIndex="{Binding DetailLevel}">
+                        <ComboBoxItem Content="Medium"/>
+                        <ComboBoxItem Content="High"/>
+                    </ComboBox>
+                </Grid>-->
+
 
             </StackPanel>
         </DataTemplate>
